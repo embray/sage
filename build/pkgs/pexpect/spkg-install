@@ -5,11 +5,7 @@ cd src
 # Apply patches
 sage-apply-patches || exit 1
 
-# On some systems pexpect doesn't upgrade correctly without
-# first removing the old version.
-rm -f "$SAGE_LOCAL"/lib/python*/site-packages/pexpect.*
-
-python setup.py install
+$PIP_INSTALL .
 
 if [ $? -ne 0 ]; then
     echo "Error installing pexpect"

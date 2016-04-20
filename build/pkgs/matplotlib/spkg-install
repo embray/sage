@@ -21,17 +21,9 @@ cd src
 # does.
 sage-apply-patches || exit 1
 
-# Now build
-python setup.py build
-if [ $? -ne 0 ]; then
-    echo "Error building matplotlib package."
-    exit 1
-fi
-
-rm -rf "$SAGE_LOCAL"/lib/python/site-packages/matplotlib
-
 # Finally install
-python setup.py install
+$PIP_INSTALL .
+
 if [ $? -ne 0 ]; then
     echo "Error installing matplotlib package."
     exit 1

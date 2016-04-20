@@ -2,7 +2,7 @@
 
 cd src
 
-python setup.py install
+$PIP_INSTALL .
 
 # Install the Jupyter notebook configuration
 ETC_JUPYTER="$SAGE_ETC"/jupyter
