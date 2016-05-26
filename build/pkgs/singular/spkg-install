@@ -106,16 +106,7 @@ choose_patches()
 
 apply_patches()
 {
-    # Apply all patches
-    for patch in "$PATCHES"/*.patch; do
-        [ -r "$patch" ] || continue  # Skip non-existing or non-readable patches
-        echo "Applying $patch"
-        patch -p1 <"$patch"
-        if [ $? -ne 0 ]; then
-            echo >&2 "Error applying '$patch'"
-            return 1
-        fi
-    done
+    sage-apply-patches "$PATCHES" || exit 1
 }
 
 remove_old_version()
