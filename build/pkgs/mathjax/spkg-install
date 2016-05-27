@@ -10,7 +10,7 @@ fi
 
 
 # Apply all patches
-sage-apply-patches || exit 1
+sage-apply-patches patches || exit 1
 
 
 # Move mathjax to its final destination.
