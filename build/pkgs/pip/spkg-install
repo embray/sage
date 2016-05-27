@@ -2,6 +2,9 @@
 
 cd src
 
+# Apply patches
+sage-apply-patches || exit 1
+
 # pip can install itself!
 # need to use --upgrade or else pip, which is importing itself, will think
 # itself is already installed
