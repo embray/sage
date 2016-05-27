@@ -2,9 +2,6 @@
 
 cd src
 
-# Apply patches
-sage-apply-patches || exit 1
-
 python setup.py install
 
 if [ $? -ne 0 ]; then

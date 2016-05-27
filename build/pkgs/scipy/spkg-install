@@ -40,9 +40,6 @@ rm -rf "$SAGE_LOCAL"/lib/python/site-packages/scipy
 
 cd src/
 
-# Apply patches (if any):
-sage-apply-patches || exit 1
-
 # Build:
 python setup.py build
 if [ $? -ne 0 ]; then
