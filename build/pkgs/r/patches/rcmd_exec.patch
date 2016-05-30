@@ -1,3 +1,5 @@
+# Required for the 'R CMD' command to work properly in certain
+# cases on Cygwin; see http://trac.sagemath.org/ticket/20655
 --- a/src/scripts/Rcmd.in	2016-05-24 17:54:31.786568400 +0200
 +++ b/src/scripts/Rcmd.in	2016-05-24 17:54:55.402067200 +0200
 @@ -50,7 +50,7 @@
