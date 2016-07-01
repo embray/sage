@@ -19,9 +19,6 @@ CUR=`pwd`
 
 cd src
 
-# Apply patches
-sage-apply-patches || exit 1
-
 # Build new version
 echo "Building Sphinx..."
 python setup.py build

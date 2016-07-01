@@ -8,10 +8,6 @@ fi
 
 cd src
 
-# Apply patches.  See SPKG.txt for information about what each patch
-# does.
-sage-apply-patches || exit 1
-
 if [ "$SAGE_DEBUG" = "yes" ]; then
     echo "Building a debug version of PyCrypto."
     export CFLAGS="-O0 -g $CFLAGS"

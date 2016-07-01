@@ -15,8 +15,4 @@ export PYTHON_EGG_CACHE="$DOT_SAGE/.python-eggs"
 
 cd src
 
-# Apply patches.  See SPKG.txt for information about what each patch
-# does.
-sage-apply-patches || exit 1
-
 python setup.py install

@@ -12,8 +12,6 @@ rm -rf "$SAGE_LOCAL/lib/python/site-packages/dot2tex"
 ls -al
 cd src
 
-sage-apply-patches || exit 1
-
 python setup.py build
 if [ $? -ne 0 ]; then
     echo >&2 "Error building dot2tex."

@@ -8,10 +8,6 @@ fi
 
 cd src
 
-# Patch sources
-sage-apply-patches || exit 1
-
-
 if [ "x$SAGE_DEBUG" = "xyes" ]; then
     OPENBLAS_CONFIGURE="$OPENBLAS_CONFIGURE DEBUG=1"
 fi

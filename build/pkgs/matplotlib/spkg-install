@@ -17,10 +17,6 @@ python make-setup-config.py
 
 cd src
 
-# Apply patches.  See SPKG.txt for information about what each patch
-# does.
-sage-apply-patches || exit 1
-
 # Now build
 python setup.py build
 if [ $? -ne 0 ]; then

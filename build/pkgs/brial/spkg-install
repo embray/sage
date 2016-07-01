@@ -13,7 +13,6 @@ rm -rf "$SAGE_LOCAL"/include/polybori*
 rm -rf "$SAGE_LOCAL"/share/polybori
 
 cd src
-sage-apply-patches || exit 1
 
 touch aclocal.m4 configure Makefile.in
 

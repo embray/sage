@@ -35,17 +35,6 @@ ntl_libtool()
     fi
 }
 
-ntl_patch()
-{
-    echo
-    echo "Applying patches to NTL."
-
-    cd "$CUR/src/ntl"
-
-    # Apply all patches
-    sage-apply-patches "$CUR"/patches || exit 1
-}
-
 ntl_configure()
 {
     echo
@@ -138,7 +127,6 @@ ntl_install()
     touch "$SAGE_LOCAL"/include/NTL/*
 }
 
-ntl_patch
 ntl_libtool
 ntl_configure
 ntl_build

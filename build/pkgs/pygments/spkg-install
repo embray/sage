@@ -12,8 +12,6 @@ rm -rf "$SAGE_LOCAL"/lib/python/site-packages/Pygments-*
 #Install new version
 cd src
 
-sage-apply-patches || exit 1
-
 python setup.py install
 if [ $? -ne 0 ]; then
    echo "Error installing Pygments."

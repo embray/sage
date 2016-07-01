@@ -8,7 +8,6 @@ fi
 
 
 cd "src"
-sage-apply-patches || exit 1
 
 $MAKE && cp libbliss.a "$SAGE_LOCAL/lib" && cp *.hh "$SAGE_LOCAL/include"
 
