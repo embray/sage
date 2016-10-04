@@ -642,10 +642,10 @@ class sage_build_ext(build_ext):
         """
         dist = self.distribution
         from sage_setup.find import find_extra_files
-        dist.extra_files = find_extra_files(dist.packages,
+        dist.sage_extra_files = find_extra_files(dist.packages,
             ".", SAGE_CYTHONIZED, ["ntlwrap.cpp"])
 
-        for (dst_dir, src_files) in dist.extra_files:
+        for (dst_dir, src_files) in dist.sage_extra_files:
             dst = os.path.join(self.build_lib, dst_dir)
             for src in src_files:
                 self.copy_file(src, dst, preserve_mode=False)
@@ -722,7 +722,7 @@ class sage_install(install):
                     dist.packages,
                     py_modules,
                     dist.ext_modules,
-                    dist.extra_files)
+                    dist.sage_extra_files)
 
 
 #########################################################
