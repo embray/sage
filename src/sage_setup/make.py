@@ -14,13 +14,13 @@ class MakeError(Exception):
 
 
 class rule(object):
-    def __new__(cls, targets, prerequisites=(), recipe=None):
+    def __new__(cls, targets, prerequisites=(), recipe=None, **kwargs):
         if recipe is None:
             cls = unbound_rule
 
         return super(rule, cls).__new__(cls)
 
-    def __init__(self, targets, prerequisites=(), recipe=None):
+    def __init__(self, targets, prerequisites=(), recipe=None, run_once=False):
         if isinstance(targets, str):
             targets = (targets,)
 
@@ -30,12 +30,21 @@ class rule(object):
         self.targets = targets
         self.prerequisites = prerequisites
         self.recipe = recipe
+        self.run_once = run_once
+        self._ran = False
 
     def __call__(self, makefile, target, prerequisites):
         # TODO: Rather than pass makefile in explicitly it would be nice
         # if all recipe functions were properly made into bound methods
         # (or static/classmethods as the case may be)
-        return self.recipe(makefile, target, prerequisites)
+        if not (self.run_once and self._ran):
+            self._ran = True
+            # If this is a "run once" recipe pass in all the targets attached
+            # to the rule, not just the one that is being built explicitly
+            if self.run_once:
+                target = self.targets
+
+            return self.recipe(makefile, target, prerequisites)
 
     @property
     def name(self):
@@ -55,7 +64,8 @@ class unbound_rule(rule):
         decorated method.
         """
 
-        return rule(self.targets, self.prerequisites, recipe)
+        return rule(self.targets, self.prerequisites, recipe,
+                    run_once=self.run_once)
 
 
 class _MakefileMeta(type):
@@ -103,6 +113,12 @@ class _MakefileMeta(type):
                     targets[target].append(value)
 
                 dependencies[target].extend(rule_prereqs)
+
+            if not isinstance(value, unbound_rule):
+                # Also update the rule itself with the expanded targets and
+                # prerequisites lists
+                value.targets = rule_targets
+                value.prerequisites = rule_prereqs
 
         # First, pass through dependencies and eliminate any duplicates
         # in each target's dependency list
