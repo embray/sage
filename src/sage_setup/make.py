@@ -37,6 +37,14 @@ class rule(object):
         # (or static/classmethods as the case may be)
         return self.recipe(makefile, target, prerequisites)
 
+    @property
+    def name(self):
+        if self.recipe:
+            return self.recipe.__name__
+
+        # An unbound rule has no name
+        return ''
+
 
 class unbound_rule(rule):
     def __call__(self, recipe):
@@ -113,8 +121,10 @@ class _MakefileMeta(type):
                     target, name))
 
             if len(rules) > 1:
-                rule_names = ', '.join("'{0}'".format(r.__name__)
-                                       for r in rules)
+                # TODO: Need to double check what make does with phony targets
+                # with multiple rules but no recipe.  Does it just union them
+                # or is it any error?
+                rule_names = ', '.join("'{0}'".format(r.name) for r in rules)
                 raise MakeError("more than one recipe ({0}) for target '{1}' "
                                 "in '{2}'; each target may have only one "
                                 "recipe".format(rule_names, target, name))
