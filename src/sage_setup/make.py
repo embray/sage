@@ -269,6 +269,9 @@ class Makefile(object):
                 if n not in visited and visit_node(n, dependencies[n]):
                     return True
                 elif n in in_stack:
+                    # Append the node that completes the cycle to the stack so
+                    # we can print the full cycle later
+                    stack.append(n)
                     return True
 
             stack.pop()
@@ -277,8 +280,10 @@ class Makefile(object):
 
         for node, prereqs in iteritems(dependencies):
             if visit_node(node, prereqs):
-                cycle = ' -> '.join("'{0}'".format(s) for s in stack + [node])
-                raise MakeError('cycle detected in targets: {0}'.format(cycle))
+                # Select just the portion of the stack that contains the cycle
+                cycle = stack[stack.index(stack[-1]):]
+                raise MakeError('cycle detected in targets: {0}'.format(
+                    ' -> '.join("'{0}'".format(s) for s in cycle)))
 
 
 def _expand_files(files):
