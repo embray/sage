@@ -73,6 +73,11 @@ class _MakefileMeta(type):
         targets = OrderedDict()
         dependencies = defaultdict(list)
 
+        # Make sure phony rules are a set
+        phony = namespace.get('phony')
+        if phony is not None and not isinstance(phony, set):
+            namespace['phony'] = phony = set(phony)
+
         for value in itervalues(namespace):
             if not isinstance(value, rule):
                 continue
@@ -99,7 +104,10 @@ class _MakefileMeta(type):
         # Pass through each target's rules, removing now any unbound_rules
         # If more than one bound rule is remaining this is an error
         for target, rules in iteritems(targets):
-            rules = [r for r in rules if not isinstance(r, unbound_rule)]
+            if target not in phony:
+                # Only phony targets are allowed to have no recipe for them
+                rules = [r for r in rules if not isinstance(r, unbound_rule)]
+
             if not rules:
                 raise MakeError("no rule to make target '{0}' in '{1}'".format(
                     target, name))
@@ -156,6 +164,8 @@ class _MakefileMeta(type):
 
 @add_metaclass(_MakefileMeta)
 class Makefile(object):
+    phony = ()
+
     def __init__(self, target=None):
         if target is None:
             # The first target in the file is the default
@@ -196,9 +206,11 @@ class Makefile(object):
             # what
             node_rule = targets[node]
 
-            if not os.path.exists(node):
+            # phony targets should always be built
+            if not os.path.exists(node) or node in self.phony:
                 # TODO: handle errors from running the rule
-                node_rule(self, node, dependencies[node])
+                if not isinstance(node_rule, unbound_rule):
+                    node_rule(self, node, dependencies[node])
                 return
 
             # TODO: There should also be error handling at this point to make
