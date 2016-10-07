@@ -101,14 +101,15 @@ class _MakefileMeta(type):
         for target, rules in iteritems(targets):
             rules = [r for r in rules if not isinstance(r, unbound_rule)]
             if not rules:
-                raise MakeError('no rule to make target {0} in {1}'.format(
+                raise MakeError("no rule to make target '{0}' in '{1}'".format(
                     target, name))
 
             if len(rules) > 1:
-                rule_names = ', '.join(r.__name__ for r in rules)
-                raise MakeError('more than one recipe ({0}) for target {1} '
-                                'in {2}; each target may have only one '
-                                'recipe'.format(rule_names, target, name))
+                rule_names = ', '.join("'{0}'".format(r.__name__)
+                                       for r in rules)
+                raise MakeError("more than one recipe ({0}) for target '{1}' "
+                                "in '{2}'; each target may have only one "
+                                "recipe".format(rule_names, target, name))
 
             targets[target] = rules[0]
 
@@ -149,7 +150,7 @@ class _MakefileMeta(type):
 
         for node, prereqs in iteritems(dependencies):
             if visit_node(node, prereqs):
-                cycle = ' -> '.join(stack + [node])
+                cycle = ' -> '.join("'{0}'".format(s) for s in stack + [node])
                 raise MakeError('cycle detected in targets: {0}'.format(cycle))
 
 
@@ -179,10 +180,10 @@ class Makefile(object):
                 # be a file that exists
                 if not os.path.exists(node):
                     if parent is None:
-                        msg = 'no rule to make target {0}'.format(node)
+                        msg = "no rule to make target '{0}'".format(node)
                     else:
-                        msg = ('no rule to make prerequisite {0} of target '
-                               '{1}'.format(node, parent))
+                        msg = ("no rule to make prerequisite '{0}' of target "
+                               "'{1}'".format(node, parent))
 
                     raise MakeError(msg)
 
