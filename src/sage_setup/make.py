@@ -32,6 +32,7 @@ class rule(object):
         self.recipe = recipe
         self.run_once = run_once
         self._ran = False
+        self._name = ''
 
     def __call__(self, makefile, target, prerequisites):
         # TODO: Rather than pass makefile in explicitly it would be nice
@@ -48,11 +49,8 @@ class rule(object):
 
     @property
     def name(self):
-        if self.recipe:
-            return self.recipe.__name__
-
-        # An unbound rule has no name
-        return ''
+        # self._name is set by the metaclass
+        return self._name
 
 
 class unbound_rule(rule):
@@ -70,71 +68,116 @@ class unbound_rule(rule):
 
 class _MakefileMeta(type):
     def __new__(metacls, name, bases, namespace):
-        metacls._process_rules(name, namespace)
-        metacls._detect_cycles(namespace['dependencies'])
+        metacls._process_rules(namespace)
         return super(_MakefileMeta, metacls).__new__(metacls, name, bases,
                                                      namespace)
 
     @staticmethod
-    def _process_rules(name, namespace):
+    def _process_rules(namespace):
+        """
+        Updates the namespace in-place.
+        """
+
+        # Make sure phony rules are a set
+        phony = namespace.get('phony')
+        if phony is not None and not isinstance(phony, set):
+            namespace['phony'] = set(phony)
+
+        rules = OrderedDict()
+        for name, value in iteritems(namespace):
+            if not isinstance(value, rule):
+                continue
+
+            value._name = name
+            rules[name] = value
+
+        namespace['rules'] = rules
+
+        # TODO: Consider checking that no rules have names that clash with the
+        # attributes/methods of the Makefile base class
+
+
+
+@add_metaclass(_MakefileMeta)
+class Makefile(object):
+    phony = ()
+
+    def __init__(self, target=None):
+        # TODO: There are many attributes and/or methods to add to the Makefile
+        # class to make introspection better.  For example, there should be
+        # a log system whereby each rule can easily log output and errors to
+        # be captured by the Makefile instance.  There should also be options
+        # whether to raise exceptions immediately or just capture and log them,
+        # as well as a flag, I suppose, for whether or not the build was
+        # successful
+        self._prepare()
+
+        if target is None:
+            # The first target in the file is the default
+            target = iterkeys(self.targets).next()
+
+        self._make(target)
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    def _prepare(self):
         """
         Collect up all rules in the class and make a directed graph, with
         nodes representing targets and edges ``A -> B`` representing the
         relationship "A depends on B".
 
-        Also keep an ordered dict mapping targets to their associated rules.
-        globs in targets and dependencies are expanded at this point as well.
+        Wildcard expressions in targets and prerequisites are expanded here.
 
-        Updates the namespace in-place.
+        Also keep an ordered dict mapping targets to their associated rules.
         """
 
         targets = OrderedDict()
         dependencies = defaultdict(list)
 
-        # Make sure phony rules are a set
-        phony = namespace.get('phony')
-        if phony is not None and not isinstance(phony, set):
-            namespace['phony'] = phony = set(phony)
+        for rule_ in itervalues(targets):
+            # Update the rule itself with the expanded targets and
+            # prerequisites lists
+            rule.targets = _expand_files(rule_.targets)
+            rule.prerequisites = _expand_files
 
-        for value in itervalues(namespace):
-            if not isinstance(value, rule):
-                continue
-
-            rule_targets = _expand_files(value.targets)
-            rule_prereqs = _expand_files(value.prerequisites)
+        for rule_ in itervalues(self.rules):
+            rule_targets = _expand_files(rule_.targets)
+            rule_prereqs = _expand_files(rule_.prerequisites)
 
             for target in rule_targets:
                 if target not in targets:
-                    targets[target] = [value]
+                    targets[target] = [rule_]
                 else:
                     # A single target may have multiple rules for it
                     # (though it may have only one non-unbound_rule; see
                     # below)
-                    targets[target].append(value)
+                    targets[target].append(rule_)
 
                 dependencies[target].extend(rule_prereqs)
 
-            if not isinstance(value, unbound_rule):
-                # Also update the rule itself with the expanded targets and
+            if not isinstance(rule_, unbound_rule):
+                # Update the rule itself with the expanded targets and
                 # prerequisites lists
-                value.targets = rule_targets
-                value.prerequisites = rule_prereqs
+                rule_.targets = tuple(rule_targets)
+                rule_.prerequisites = tuple(rule_prereqs)
 
         # First, pass through dependencies and eliminate any duplicates
         # in each target's dependency list
-        for target, deps in iteritems(dependencies):
-            dependencies[target] = tuple(_unique(deps))
+        for target, prereqs in iteritems(dependencies):
+            dependencies[target] = tuple(_unique(prereqs))
 
         # Pass through each target's rules, removing now any unbound_rules
         # If more than one bound rule is remaining this is an error
         for target, rules in iteritems(targets):
-            if target not in phony:
+            if target not in self.phony:
                 # Only phony targets are allowed to have no recipe for them
                 rules = [r for r in rules if not isinstance(r, unbound_rule)]
 
             if not rules:
                 raise MakeError("no rule to make target '{0}' in '{1}'".format(
-                    target, name))
+                    target, self.name))
 
             if len(rules) > 1:
                 # TODO: Need to double check what make does with phony targets
@@ -143,68 +186,15 @@ class _MakefileMeta(type):
                 rule_names = ', '.join("'{0}'".format(r.name) for r in rules)
                 raise MakeError("more than one recipe ({0}) for target '{1}' "
                                 "in '{2}'; each target may have only one "
-                                "recipe".format(rule_names, target, name))
+                                "recipe".format(rule_names, target, self.name))
 
             targets[target] = rules[0]
 
-        # TODO: Because these have special meaning for the Makefile, consider
-        # raising an error if the user accidentally defines these attributes in
-        # the body of their Makefile
-        namespace.update(targets=targets, dependencies=dependencies)
+        # Sanity check on dependency graph
+        self._detect_cycles(dependencies)
 
-    @staticmethod
-    def _detect_cycles(dependencies):
-        visited = set()
-
-        # in lieu of an "ordered set"
-        in_stack = set()
-        stack = []
-
-        def visit_node(node, prereqs):
-            # Returns True if the node is part of a cycle
-            visited.add(node)
-            stack.append(node)
-            in_stack.add(node)
-
-            for n in prereqs:
-                # Targets are allowed to have dependencies for which no target
-                # is defined; that dependency just better exist at runtime,
-                # otherwise we treat them as leaf nodes
-                if n not in dependencies:
-                    continue
-
-                if n not in visited and visit_node(n, dependencies[n]):
-                    return True
-                elif n in in_stack:
-                    return True
-
-            stack.pop()
-            in_stack.remove(node)
-            return False
-
-        for node, prereqs in iteritems(dependencies):
-            if visit_node(node, prereqs):
-                cycle = ' -> '.join("'{0}'".format(s) for s in stack + [node])
-                raise MakeError('cycle detected in targets: {0}'.format(cycle))
-
-
-@add_metaclass(_MakefileMeta)
-class Makefile(object):
-    phony = ()
-
-    def __init__(self, target=None):
-        if target is None:
-            # The first target in the file is the default
-            target = iterkeys(self.targets).next()
-
-        # TODO: There are many attributes and/or methods to add to the Makefile
-        # class to make introspection better.  For example, there should be
-        # a log system whereby each rule can easily log output and errors to
-        # be captured by the Makefile instance.  There should also be options
-        # whether to raise exceptions immediately or just capture and log them,
-        # as well as a flag, I suppose, for whether or not the build was
-        # successful
-        self._make(target)
+        self.targets = targets
+        self.dependencies = dependencies
 
     def _make(self, target):
         dependencies = self.dependencies
@@ -254,6 +244,41 @@ class Makefile(object):
                 node_rule(self, node, newer_prereqs)
 
         visit_node(target, None)
+
+    @staticmethod
+    def _detect_cycles(dependencies):
+        visited = set()
+
+        # in lieu of an "ordered set"
+        in_stack = set()
+        stack = []
+
+        def visit_node(node, prereqs):
+            # Returns True if the node is part of a cycle
+            visited.add(node)
+            stack.append(node)
+            in_stack.add(node)
+
+            for n in prereqs:
+                # Targets are allowed to have dependencies for which no target
+                # is defined; that dependency just better exist at runtime,
+                # otherwise we treat them as leaf nodes
+                if n not in dependencies:
+                    continue
+
+                if n not in visited and visit_node(n, dependencies[n]):
+                    return True
+                elif n in in_stack:
+                    return True
+
+            stack.pop()
+            in_stack.remove(node)
+            return False
+
+        for node, prereqs in iteritems(dependencies):
+            if visit_node(node, prereqs):
+                cycle = ' -> '.join("'{0}'".format(s) for s in stack + [node])
+                raise MakeError('cycle detected in targets: {0}'.format(cycle))
 
 
 def _expand_files(files):
