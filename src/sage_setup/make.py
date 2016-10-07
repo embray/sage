@@ -245,8 +245,7 @@ class Makefile(object):
 
         visit_node(target, None)
 
-    @staticmethod
-    def _detect_cycles(dependencies):
+    def _detect_cycles(self, dependencies):
         visited = set()
 
         # in lieu of an "ordered set"
@@ -282,8 +281,8 @@ class Makefile(object):
             if visit_node(node, prereqs):
                 # Select just the portion of the stack that contains the cycle
                 cycle = stack[stack.index(stack[-1]):]
-                raise MakeError('cycle detected in targets: {0}'.format(
-                    ' -> '.join("'{0}'".format(s) for s in cycle)))
+                raise MakeError('cycle detected in {0} targets: {1}'.format(
+                    self.name, ' -> '.join("'{0}'".format(s) for s in cycle)))
 
 
 def _expand_files(files):
